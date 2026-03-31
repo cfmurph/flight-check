@@ -1,19 +1,10 @@
-# AGENTS.md
+# AGENTS
 
 ## Cursor Cloud specific instructions
 
-This is the `flight-check` repository. As of initial setup, it is an empty repository containing only a `README.md`. There is no application code, no dependencies, no build system, and no tests.
+This is a minimal "flight-check" repository containing only a `README.md`. There are no application services, build systems, test suites, or dependencies to install.
 
-### Environment
-
-- **Node.js**: v22 (available via nvm)
-- **Python**: 3.12
-- **Git**: 2.43
-
-### Getting started
-
-When application code is added, update this section with:
-- How to install dependencies
-- How to run the dev server
-- How to run lint and tests
-- Any non-obvious caveats
+- **No services to start.** The repo has no backend, frontend, or database components.
+- **No dependency manager.** There is no `package.json`, `requirements.txt`, `pyproject.toml`, or similar manifest.
+- **No lint/test/build commands.** There are no configured lint, test, or build steps.
+- **Update script is a no-op** (`echo "No dependencies to install"`).
