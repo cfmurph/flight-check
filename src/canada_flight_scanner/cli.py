@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
 from .airports import AIRPORTS_BY_IATA, TIER_1_AIRPORTS, get_all_routes
-from .client_factory import create_client
+from .api_client import AmadeusFlightClient
 from .reporter import ConsoleReporter, FileReporter, print_quick_summary
 from .scanner import FlightScanner
 
@@ -101,9 +101,14 @@ def scan_cmd(
     _setup_logging(verbose)
 
     try:
-        client = create_client()
+        client = AmadeusFlightClient()
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
+        console.print(
+            "\n[yellow]Tip:[/yellow] Copy [bold].env.example[/bold] to [bold].env[/bold] "
+            "and fill in your Amadeus API credentials.\n"
+            "Free credentials: [link=https://developers.amadeus.com]https://developers.amadeus.com[/link]"
+        )
         sys.exit(1)
 
     origin_list = (
@@ -234,7 +239,7 @@ def watch_cmd(interval, origins, days, max_price, min_discount, top, output_dir,
     _setup_logging(verbose)
 
     try:
-        client = create_client()
+        client = AmadeusFlightClient()
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         sys.exit(1)
