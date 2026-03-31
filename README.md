@@ -17,7 +17,7 @@ A Python tool that scans domestic Canadian flight routes via the [SerpApi Google
 
 ## Quickstart
 
-### 1. Get a free SerpApi key
+### 1. Get free Amadeus API credentials
 
 Sign up at <https://serpapi.com/users/sign_up> — **100 free searches/month**, no credit card required.  
 SerpApi provides real-time Google Flights data for all Canadian routes.
@@ -33,7 +33,7 @@ pip install -e .
 
 ```bash
 cp .env.example .env
-# Edit .env and set SERPAPI_KEY=your_key_here
+# Edit .env and fill in AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET
 ```
 
 ### 4. Run a scan

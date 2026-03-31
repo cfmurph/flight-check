@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
+from .api_client import AmadeusFlightClient
 from .airports import TIER_1_AIRPORTS, get_all_routes
 from .client_factory import create_client
 from .deal_engine import identify_deals, rank_deals_across_routes
@@ -39,7 +40,7 @@ class FlightScanner:
     ):
         """
         Args:
-            client: Flight API client instance. Auto-selected from env vars if None.
+            client: AmadeusFlightClient instance. Created from env vars if None.
             origins: IATA codes to use as scan origins. Defaults to Tier 1 airports.
             days_ahead: How many days into the future to scan.
             deal_price_threshold: Max price (CAD) to consider a deal.
@@ -48,7 +49,7 @@ class FlightScanner:
             date_step_days: Scan every N days (1 = daily, reduces API calls when > 1).
             rate_limit_pause: Seconds between API calls.
         """
-        self.client = client or create_client()
+        self.client = client or AmadeusFlightClient()
         self.origins = origins or self._origins_from_env() or TIER_1_AIRPORTS
         self.days_ahead = int(os.getenv("SCAN_DAYS_AHEAD", days_ahead))
         self.deal_price_threshold = float(
