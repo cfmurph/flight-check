@@ -1,5 +1,5 @@
 """
-SerpApi (Google Flights) client — drop-in replacement for AmadeusFlightClient.
+SerpApi (Google Flights) client for Canadian domestic flight searches.
 
 Free tier: 100 searches/month at https://serpapi.com
 Sign up: https://serpapi.com/users/sign_up
@@ -121,9 +121,6 @@ def _parse_result_item(item: dict, offer_idx: int, currency: str = "CAD") -> Opt
 class SerpApiFlightClient:
     """
     Google Flights client via SerpApi.
-
-    Implements the same search interface as AmadeusFlightClient so it can be
-    used as a drop-in replacement throughout the scanner.
 
     Env var: SERPAPI_KEY
     Free tier: 100 searches / month (https://serpapi.com)
