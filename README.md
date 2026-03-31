@@ -1,6 +1,6 @@
 # Canadian Flight Deal Scanner
 
-A Python tool that scans domestic Canadian flight routes via the [Amadeus API](https://developers.amadeus.com) and reports the best deals, ranked by a composite scoring model that weighs price discounts, absolute fare cost, non-stop preference, seat scarcity, and booking-window timing.
+A Python tool that scans domestic Canadian flight routes via the [SerpApi Google Flights API](https://serpapi.com/google-flights-api) and reports the best deals, ranked by a composite scoring model that weighs price discounts, absolute fare cost, non-stop preference, seat scarcity, and booking-window timing.
 
 ---
 
@@ -19,8 +19,8 @@ A Python tool that scans domestic Canadian flight routes via the [Amadeus API](h
 
 ### 1. Get free Amadeus API credentials
 
-Sign up at <https://developers.amadeus.com> (free tier, no credit card required).  
-The **test environment** provides cached real-world data for most Canadian routes.
+Sign up at <https://serpapi.com/users/sign_up> — **100 free searches/month**, no credit card required.  
+SerpApi provides real-time Google Flights data for all Canadian routes.
 
 ### 2. Install
 
@@ -95,9 +95,7 @@ canada-flights airports [--tier 1|2|3]
 
 | Variable | Default | Description |
 |---|---|---|
-| `AMADEUS_CLIENT_ID` | *(required)* | Amadeus API client ID |
-| `AMADEUS_CLIENT_SECRET` | *(required)* | Amadeus API client secret |
-| `AMADEUS_ENV` | `test` | `test` or `production` |
+| `SERPAPI_KEY` | *(required)* | SerpApi key — Google Flights data, 100 free searches/month |
 | `SCAN_ORIGINS` | Tier-1 airports | Comma-separated IATA origins |
 | `SCAN_DAYS_AHEAD` | `90` | Days ahead to search |
 | `DEAL_PRICE_THRESHOLD` | `500` | Max deal price in CAD |
@@ -126,20 +124,21 @@ Deals are also tagged for quick identification: `NONSTOP`, `FLASH_SALE` (≥40% 
 
 ```
 canada_flight_scanner/
-├── airports.py      – Airport catalogue and route generation
-├── api_client.py    – Amadeus SDK wrapper
-├── models.py        – Data classes (FlightOffer, FlightDeal, ScanResult, …)
-├── deal_engine.py   – Scoring logic and deal identification
-├── scanner.py       – Orchestrator (iterates routes + dates)
-├── reporter.py      – Rich console tables + JSON/CSV file output
-├── scheduler.py     – Recurring watch-mode scheduler
-└── cli.py           – Click CLI entry point
+├── airports.py       – Airport catalogue and route generation
+├── client_factory.py – Creates the SerpApi client from environment credentials
+├── serpapi_client.py – SerpApi (Google Flights) client
+├── models.py         – Data classes (FlightOffer, FlightDeal, ScanResult, …)
+├── deal_engine.py    – Scoring logic and deal identification
+├── scanner.py        – Orchestrator (iterates routes + dates)
+├── reporter.py       – Rich console tables + JSON/CSV file output
+├── scheduler.py      – Recurring watch-mode scheduler
+└── cli.py            – Click CLI entry point
 tests/
 ├── test_airports.py
-├── test_api_client.py
+├── test_serpapi_client.py
 ├── test_deal_engine.py
 └── test_models.py
-reports/             – Auto-created; scan results saved here
+reports/              – Auto-created; scan results saved here
 ```
 
 ---
@@ -152,8 +151,9 @@ pytest
 
 ---
 
-## Notes on the free (test) tier
+## Notes on the free tier
 
-- The Amadeus sandbox uses **cached data** – prices are realistic but not live.
-- Rate limit: **10 requests/second**. The scanner respects this with a configurable `rate_limit_pause` (default 0.3 s).
-- For production data, set `AMADEUS_ENV=production` and be aware of billing beyond the free quota.
+- **100 searches/month** free, no credit card required
+- Returns live Google Flights prices
+- Rate limit: no hard limit on the free tier; the scanner pauses 0.5 s between requests by default
+- Paid plans start at $50/month for 5,000 searches if you need more volume

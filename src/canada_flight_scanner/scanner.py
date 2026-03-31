@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from .api_client import AmadeusFlightClient
 from .airports import TIER_1_AIRPORTS, get_all_routes
+from .client_factory import create_client
 from .deal_engine import identify_deals, rank_deals_across_routes
 from .models import FlightDeal, ScanResult
 
@@ -28,7 +29,7 @@ class FlightScanner:
 
     def __init__(
         self,
-        client: Optional[AmadeusFlightClient] = None,
+        client=None,
         origins: Optional[List[str]] = None,
         days_ahead: int = 90,
         deal_price_threshold: float = 500.0,
