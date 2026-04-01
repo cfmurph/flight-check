@@ -68,7 +68,7 @@ def cli():
 )
 @click.option(
     "--tier",
-    default=2,
+    default="2",
     show_default=True,
     type=click.Choice(["1", "2", "3"]),
     help="Max destination tier (1=major cities only, 3=all airports).",
