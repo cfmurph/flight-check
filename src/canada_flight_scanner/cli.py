@@ -91,11 +91,17 @@ def cli():
     show_default=True,
     help="Directory to save JSON and CSV reports.",
 )
+@click.option(
+    "--workers", "-w",
+    default=4,
+    show_default=True,
+    help="Number of routes to scan in parallel.",
+)
 @click.option("--no-file", is_flag=True, help="Skip saving report files.")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging.")
 def scan_cmd(
     origins, destinations, days, max_price, min_discount,
-    tier, date_step, top, output_dir, no_file, verbose,
+    tier, date_step, top, output_dir, workers, no_file, verbose,
 ):
     """Scan Canadian domestic routes and report the best flight deals."""
     _setup_logging(verbose)
@@ -138,6 +144,7 @@ def scan_cmd(
         deal_discount_pct=min_discount,
         max_destination_tier=int(tier),
         date_step_days=date_step,
+        workers=workers,
     )
 
     # Build explicit routes if destinations were supplied
@@ -229,10 +236,11 @@ def airports_cmd(tier):
 @click.option("--days", "-n", default=90, show_default=True)
 @click.option("--max-price", default=500.0, show_default=True)
 @click.option("--min-discount", default=15.0, show_default=True)
+@click.option("--workers", "-w", default=4, show_default=True, help="Parallel route workers.")
 @click.option("--top", default=10, show_default=True)
 @click.option("--output-dir", default="./reports", show_default=True)
 @click.option("--verbose", "-v", is_flag=True)
-def watch_cmd(interval, origins, days, max_price, min_discount, top, output_dir, verbose):
+def watch_cmd(interval, origins, days, max_price, min_discount, workers, top, output_dir, verbose):
     """Continuously scan and report deals on a schedule."""
     from .scheduler import run_scheduled
 
@@ -255,6 +263,7 @@ def watch_cmd(interval, origins, days, max_price, min_discount, top, output_dir,
         days_ahead=days,
         deal_price_threshold=max_price,
         deal_discount_pct=min_discount,
+        workers=workers,
     )
 
     file_reporter = FileReporter(output_dir=output_dir)
