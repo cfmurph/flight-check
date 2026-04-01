@@ -183,6 +183,152 @@ def scan_cmd(
         )
 
 
+@cli.command("route")
+@click.argument("origin")
+@click.argument("destination")
+@click.option(
+    "--days", "-n",
+    default=30,
+    show_default=True,
+    help="Number of days ahead to search.",
+)
+@click.option(
+    "--max-price",
+    default=500.0,
+    show_default=True,
+    help="Maximum price in CAD.",
+)
+@click.option(
+    "--top",
+    default=10,
+    show_default=True,
+    help="Number of results to show per direction.",
+)
+@click.option("--no-file", is_flag=True, help="Skip saving report files.")
+@click.option("--output-dir", default="./reports", show_default=True)
+@click.option("--verbose", "-v", is_flag=True, help="Enable debug logging.")
+def route_cmd(origin, destination, days, max_price, top, no_file, output_dir, verbose):
+    """Search flights between two airports in both directions.
+
+    ORIGIN and DESTINATION are IATA airport codes (e.g. YYC YYZ).
+    """
+    _setup_logging(verbose)
+
+    origin = origin.upper()
+    destination = destination.upper()
+
+    for code in [origin, destination]:
+        if code not in AIRPORTS_BY_IATA:
+            console.print(
+                f"[red]Unknown airport code:[/red] {code}. "
+                "Run [bold]canada-flights airports[/bold] to see valid codes."
+            )
+            sys.exit(1)
+
+    try:
+        client = create_client()
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        sys.exit(1)
+
+    from datetime import datetime, timedelta, timezone
+    from rich.table import Table
+    from rich import box
+    from .deal_engine import identify_deals
+    from .models import ScanResult
+    import uuid
+
+    console.print(
+        f"\n[bold cyan]Route Search:[/bold cyan]  "
+        f"[bold]{origin} ↔ {destination}[/bold]  "
+        f"days_ahead={days}  max_price=${max_price:.0f} CAD\n"
+    )
+
+    today = datetime.now(timezone.utc).date()
+    dates = [
+        (today + timedelta(days=d)).strftime("%Y-%m-%d")
+        for d in range(1, days + 1, 3)
+    ]
+
+    all_deals = []
+    started_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    for label, orig, dest in [
+        (f"{origin} → {destination}", origin, destination),
+        (f"{destination} → {origin}", destination, origin),
+    ]:
+        with console.status(f"[cyan]Scanning {label}…[/cyan]"):
+            offers = []
+            for date_str in dates:
+                offers.extend(
+                    client.get_cheapest_date_offers(
+                        origin=orig,
+                        destination=dest,
+                        departure_date=date_str,
+                    )
+                )
+
+        deals = identify_deals(
+            offers=offers,
+            min_discount_pct=0.0,   # show all results, not just deals
+            max_price_threshold=max_price,
+            min_score=0.0,
+        )
+        # Sort by price so cheapest dates show first
+        deals = sorted(deals, key=lambda d: d.price_cad)
+
+        console.print(f"\n[bold]{label}[/bold] — {len(deals)} flights found\n")
+
+        if not deals:
+            console.print("  [yellow]No flights found for this direction.[/yellow]")
+            continue
+
+        table = Table(box=box.ROUNDED, header_style="bold cyan", show_header=True)
+        table.add_column("Date", min_width=14)
+        table.add_column("Time", width=6)
+        table.add_column("Price (CAD)", justify="right", min_width=11)
+        table.add_column("Duration", width=9)
+        table.add_column("Stops", width=6)
+        table.add_column("Airline", width=7)
+        table.add_column("Score", justify="right", width=6)
+
+        for deal in deals[:top]:
+            itin = deal.offer.itineraries[0]
+            stops_str = "Direct" if deal.offer.total_stops == 0 else str(deal.offer.total_stops)
+            from .reporter import _score_color
+            color = _score_color(deal.deal_score)
+            table.add_row(
+                deal.departure_date_str,
+                deal.departure_time_str,
+                f"[{color}]${deal.price_cad:.0f}[/{color}]",
+                itin.duration_str,
+                stops_str,
+                deal.offer.validating_carrier,
+                f"[{color}]{deal.deal_score:.0f}[/{color}]",
+            )
+
+        console.print(table)
+        all_deals.extend(deals[:top])
+
+    if not no_file and all_deals:
+        finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        result = ScanResult(
+            scan_id=str(uuid.uuid4())[:8],
+            started_at=started_at,
+            finished_at=finished_at,
+            routes_scanned=2,
+            offers_evaluated=len(all_deals),
+            deals_found=all_deals,
+        )
+        file_reporter = FileReporter(output_dir=output_dir)
+        paths = file_reporter.save_all(result)
+        console.print(
+            f"\n[dim]Reports saved:[/dim]\n"
+            f"  JSON → {paths['json']}\n"
+            f"  CSV  → {paths['csv']}\n"
+        )
+
+
 @cli.command("airports")
 @click.option("--tier", default=None, type=click.Choice(["1", "2", "3"]),
               help="Filter by tier.")
