@@ -3,8 +3,6 @@
 import logging
 import os
 import sys
-from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -13,8 +11,8 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
 from .airports import AIRPORTS_BY_IATA, TIER_1_AIRPORTS, get_all_routes
-from .api_client import AmadeusFlightClient
-from .reporter import ConsoleReporter, FileReporter, print_quick_summary
+from .client_factory import create_client
+from .reporter import ConsoleReporter, FileReporter
 from .scanner import FlightScanner
 
 console = Console()
@@ -80,6 +78,12 @@ def cli():
     help="Scan every N days (1 = daily; higher = fewer API calls).",
 )
 @click.option(
+    "--workers", "-w",
+    default=4,
+    show_default=True,
+    help="Number of routes to scan in parallel.",
+)
+@click.option(
     "--top",
     default=30,
     show_default=True,
@@ -91,30 +95,19 @@ def cli():
     show_default=True,
     help="Directory to save JSON and CSV reports.",
 )
-@click.option(
-    "--workers", "-w",
-    default=4,
-    show_default=True,
-    help="Number of routes to scan in parallel.",
-)
 @click.option("--no-file", is_flag=True, help="Skip saving report files.")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging.")
 def scan_cmd(
     origins, destinations, days, max_price, min_discount,
-    tier, date_step, top, output_dir, workers, no_file, verbose,
+    tier, date_step, workers, top, output_dir, no_file, verbose,
 ):
     """Scan Canadian domestic routes and report the best flight deals."""
     _setup_logging(verbose)
 
     try:
-        client = AmadeusFlightClient()
+        client = create_client()
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        console.print(
-            "\n[yellow]Tip:[/yellow] Copy [bold].env.example[/bold] to [bold].env[/bold] "
-            "and fill in your Amadeus API credentials.\n"
-            "Free credentials: [link=https://developers.amadeus.com]https://developers.amadeus.com[/link]"
-        )
         sys.exit(1)
 
     origin_list = (
@@ -126,9 +119,7 @@ def scan_cmd(
         if destinations else None
     )
 
-    # Validate any user-supplied codes
-    all_supplied = (origin_list or []) + (dest_list or [])
-    for code in all_supplied:
+    for code in (origin_list or []) + (dest_list or []):
         if code not in AIRPORTS_BY_IATA:
             console.print(
                 f"[red]Unknown airport code:[/red] {code}. "
@@ -147,12 +138,11 @@ def scan_cmd(
         workers=workers,
     )
 
-    # Build explicit routes if destinations were supplied
     if dest_list:
         effective_origins = origin_list or TIER_1_AIRPORTS
         routes = [(o, d) for o in effective_origins for d in dest_list if o != d]
     else:
-        routes = None  # scanner auto-generates
+        routes = None
 
     total_routes = len(routes) if routes else len(
         get_all_routes(origin_list, max_tier=int(tier))
@@ -160,7 +150,8 @@ def scan_cmd(
 
     console.print(
         f"\n[bold cyan]Canadian Flight Deal Scanner[/bold cyan]  "
-        f"routes={total_routes}  days_ahead={days}  max_price=${max_price:.0f} CAD\n"
+        f"routes={total_routes}  days_ahead={days}  "
+        f"max_price=${max_price:.0f} CAD  workers={workers}\n"
     )
 
     with Progress(
@@ -199,13 +190,7 @@ def airports_cmd(tier):
     """List all supported Canadian airports."""
     from rich.table import Table
     from rich import box
-    from .airports import CANADIAN_AIRPORTS, TIER_1_AIRPORTS, TIER_2_AIRPORTS, TIER_3_AIRPORTS
-
-    tier_map = {
-        "1": set(TIER_1_AIRPORTS),
-        "2": set(TIER_2_AIRPORTS),
-        "3": set(TIER_3_AIRPORTS),
-    }
+    from .airports import CANADIAN_AIRPORTS, TIER_1_AIRPORTS, TIER_2_AIRPORTS
 
     table = Table(title="Supported Canadian Airports", box=box.ROUNDED, header_style="bold cyan")
     table.add_column("IATA", width=6)
@@ -247,7 +232,7 @@ def watch_cmd(interval, origins, days, max_price, min_discount, workers, top, ou
     _setup_logging(verbose)
 
     try:
-        client = AmadeusFlightClient()
+        client = create_client()
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         sys.exit(1)
@@ -276,14 +261,11 @@ def watch_cmd(interval, origins, days, max_price, min_discount, workers, top, ou
             file_reporter.save_all(result)
         return result
 
-    def report_fn(result):
-        pass  # already handled inside scan_and_report
-
     console.print(
         f"\n[bold cyan]Watch mode[/bold cyan] – scanning every {interval} hours. "
         "Press [bold]Ctrl+C[/bold] to stop.\n"
     )
-    run_scheduled(scan_and_report, report_fn, interval_hours=interval)
+    run_scheduled(scan_and_report, lambda r: None, interval_hours=interval)
 
 
 def main():
