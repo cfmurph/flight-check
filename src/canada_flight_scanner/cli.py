@@ -204,10 +204,17 @@ def scan_cmd(
     show_default=True,
     help="Number of results to show per direction.",
 )
+@click.option(
+    "--sort",
+    default="price",
+    show_default=True,
+    type=click.Choice(["price", "date", "score"]),
+    help="Sort results by price, date, or deal score.",
+)
 @click.option("--no-file", is_flag=True, help="Skip saving report files.")
 @click.option("--output-dir", default="./reports", show_default=True)
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging.")
-def route_cmd(origin, destination, days, max_price, top, no_file, output_dir, verbose):
+def route_cmd(origin, destination, days, max_price, top, sort, no_file, output_dir, verbose):
     """Search flights between two airports in both directions.
 
     ORIGIN and DESTINATION are IATA airport codes (e.g. YYC YYZ).
@@ -274,8 +281,12 @@ def route_cmd(origin, destination, days, max_price, top, no_file, output_dir, ve
             max_price_threshold=max_price,
             min_score=0.0,
         )
-        # Sort by price so cheapest dates show first
-        deals = sorted(deals, key=lambda d: d.price_cad)
+        sort_keys = {
+            "price": lambda d: d.price_cad,
+            "date":  lambda d: d.offer.outbound_departure,
+            "score": lambda d: -d.deal_score,
+        }
+        deals = sorted(deals, key=sort_keys[sort])
 
         console.print(f"\n[bold]{label}[/bold] — {len(deals)} flights found\n")
 
