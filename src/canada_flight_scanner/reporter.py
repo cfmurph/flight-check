@@ -115,8 +115,10 @@ class FileReporter:
     """Saves scan results to JSON and CSV files."""
 
     def __init__(self, output_dir: Optional[str] = None):
-        self.output_dir = Path(output_dir or os.getenv("REPORT_DIR", "./reports"))
+        self.output_dir = Path(output_dir or os.getenv("REPORT_DIR", "./reports")).resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        # Restrict directory to owner only
+        self.output_dir.chmod(0o700)
 
     def _base_filename(self, result: ScanResult) -> str:
         ts = result.finished_at.strftime("%Y%m%d_%H%M%S")
@@ -166,6 +168,7 @@ class FileReporter:
 
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, ensure_ascii=False)
+        path.chmod(0o600)
 
         logger.info("JSON report saved to %s", path)
         return path
@@ -201,6 +204,7 @@ class FileReporter:
                     "tags": "|".join(deal.deal_tags),
                     "seats_available": deal.offer.seats_available or "",
                 })
+        path.chmod(0o600)
 
         logger.info("CSV report saved to %s", path)
         return path

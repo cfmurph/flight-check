@@ -14,6 +14,7 @@ from .airports import AIRPORTS_BY_IATA, TIER_1_AIRPORTS, get_all_routes
 from .client_factory import create_client
 from .reporter import ConsoleReporter, FileReporter
 from .scanner import FlightScanner
+from .security import validate_iata, validate_output_dir, cap, MAX_DAYS, MAX_WORKERS, MAX_TOP
 
 console = Console()
 
@@ -104,20 +105,34 @@ def scan_cmd(
     """Scan Canadian domestic routes and report the best flight deals."""
     _setup_logging(verbose)
 
+    days = cap(days, 1, MAX_DAYS, "days")
+    workers = cap(workers, 1, MAX_WORKERS, "workers")
+    top = cap(top, 1, MAX_TOP, "top")
+
+    try:
+        out_path = validate_output_dir(output_dir)
+    except ValueError as exc:
+        console.print(f"[red]Invalid output directory:[/red] {exc}")
+        sys.exit(1)
+
     try:
         client = create_client()
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         sys.exit(1)
 
-    origin_list = (
-        [c.strip().upper() for c in origins.split(",")]
-        if origins else None
-    )
-    dest_list = (
-        [c.strip().upper() for c in destinations.split(",")]
-        if destinations else None
-    )
+    try:
+        origin_list = (
+            [validate_iata(c) for c in origins.split(",")]
+            if origins else None
+        )
+        dest_list = (
+            [validate_iata(c) for c in destinations.split(",")]
+            if destinations else None
+        )
+    except ValueError as exc:
+        console.print(f"[red]Invalid airport code:[/red] {exc}")
+        sys.exit(1)
 
     for code in (origin_list or []) + (dest_list or []):
         if code not in AIRPORTS_BY_IATA:
@@ -221,8 +236,16 @@ def route_cmd(origin, destination, days, max_price, top, sort, no_file, output_d
     """
     _setup_logging(verbose)
 
-    origin = origin.upper()
-    destination = destination.upper()
+    days = cap(days, 1, MAX_DAYS, "days")
+    top = cap(top, 1, MAX_TOP, "top")
+
+    try:
+        origin = validate_iata(origin)
+        destination = validate_iata(destination)
+        validate_output_dir(output_dir)
+    except ValueError as exc:
+        console.print(f"[red]Invalid input:[/red] {exc}")
+        sys.exit(1)
 
     for code in [origin, destination]:
         if code not in AIRPORTS_BY_IATA:
@@ -388,16 +411,23 @@ def watch_cmd(interval, origins, days, max_price, min_discount, workers, top, ou
 
     _setup_logging(verbose)
 
+    days = cap(days, 1, MAX_DAYS, "days")
+    workers = cap(workers, 1, MAX_WORKERS, "workers")
+
     try:
         client = create_client()
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         sys.exit(1)
 
-    origin_list = (
-        [c.strip().upper() for c in origins.split(",")]
-        if origins else None
-    )
+    try:
+        origin_list = (
+            [validate_iata(c) for c in origins.split(",")]
+            if origins else None
+        )
+    except ValueError as exc:
+        console.print(f"[red]Invalid airport code:[/red] {exc}")
+        sys.exit(1)
 
     scanner = FlightScanner(
         client=client,

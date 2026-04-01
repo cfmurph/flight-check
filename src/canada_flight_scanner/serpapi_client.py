@@ -16,6 +16,7 @@ from typing import List, Optional
 
 from serpapi import GoogleSearch
 
+from .security import mask_key
 from .models import (
     FlightItinerary,
     FlightOffer,
@@ -138,7 +139,7 @@ class SerpApiFlightClient:
                 "Free account (100 searches/month): https://serpapi.com/users/sign_up"
             )
         self.currency = currency
-        logger.info("SerpApi (Google Flights) client initialised")
+        logger.info("SerpApi client initialised (key=%s)", mask_key(self.api_key))
 
     def _search(self, params: dict) -> dict:
         """Execute a SerpApi search and return the parsed JSON result."""

@@ -1,8 +1,12 @@
 """Creates the flight data client from environment credentials."""
 
+import logging
 import os
 
+from .security import mask_key
 from .serpapi_client import SerpApiFlightClient
+
+logger = logging.getLogger(__name__)
 
 
 def create_client() -> SerpApiFlightClient:
@@ -20,4 +24,5 @@ def create_client() -> SerpApiFlightClient:
             "Free account (100 searches/month): https://serpapi.com/users/sign_up\n\n"
             "Copy .env.example to .env and fill in your key."
         )
+    logger.debug("Initialising SerpApi client (key=%s)", mask_key(api_key))
     return SerpApiFlightClient(api_key=api_key)
